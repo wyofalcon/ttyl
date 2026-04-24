@@ -1,0 +1,35 @@
+{
+  "description": "Tracks prompt-cache lifecycle state in ~/.claude/.cache-timestamp. Three possible values: 'none' (fresh session), 'active' (request in flight), or 'idle:<epoch>' (counting down).",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo none > \"${HOME}/.claude/.cache-timestamp\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo active > \"${HOME}/.claude/.cache-timestamp\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo idle:$(date +%s) > \"${HOME}/.claude/.cache-timestamp\""
+          }
+        ]
+      }
+    ]
+  }
+}

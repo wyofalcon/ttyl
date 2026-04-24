@@ -1,0 +1,18 @@
+{
+  "name": "claude-cache-ttl",
+  "version": "0.1.0",
+  "description": "Adds a prompt-cache TTL countdown to your Claude Code status line. Shows how much time remains before the 5-minute Anthropic prompt cache expires — so you know when your next prompt will be uncached.",
+  "author": {
+    "name": "Mac & frAInky Studios",
+    "email": "wyofalcon@gmail.com"
+  },
+  "homepage": "https://github.com/wyofalcon/claude-cache-ttl",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "statusline",
+    "prompt-cache",
+    "anthropic"
+  ]
+}
