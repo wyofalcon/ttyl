@@ -1,18 +1,27 @@
-# Floating Cache Timer — Design
+# TTYL — Design
 
+**Product name:** TTYL ("Talk To You Later" — also a nod to the underlying `TTL`)
 **Date:** 2026-04-24
-**Plugin:** `claude-cache-ttl`
+**Repo:** `claude-cache-ttl` (repo/marketplace slug; will be renamed to `ttyl` — see *Rename migration*)
 **Author:** wyofalcon
 **Status:** Draft, awaiting user approval
 
+TTYL is a Claude Code plugin + companion desktop tray app. The plugin writes per-session cache-lifecycle state; the tray app renders always-on-top "pill" windows that flash when Claude finishes working and click-to-focus the owning VSCode instance. The name captures the core user moment: you walk away, Claude says "TTYL" when it's done.
+
 ## Problem
 
-The `claude-cache-ttl` plugin exposes cache TTL in the Claude Code statusline — but only in the terminal running Claude. When the user runs several Claude sessions in parallel across separate VSCode instances on separate Windows 11 virtual desktops, they cannot see cache state for a session without switching to its desktop.
+The `claude-cache-ttl` plugin exposes cache TTL in the Claude Code statusline — but only in the terminal running Claude. This leaves two gaps:
 
-The user previously built an external floating-window timer keyed to a VSCode instance, clickable to focus that instance. It worked but was inaccurate (it didn't hook into Claude Code lifecycle events). This spec describes rebuilding it on top of the plugin's accurate lifecycle hooks.
+1. **"Is Claude done yet?"** — Most users kick off a long Claude turn and switch to a browser, another monitor, YouTube, Slack, etc. until it finishes. They have no peripheral-vision signal when Claude stops working; they have to keep flipping back to the terminal to check.
+2. **Multi-project invisibility** — Power users running several parallel Claude sessions across separate VSCode instances on separate Windows 11 virtual desktops cannot see any session's state without switching to its desktop.
+
+Both are solved by the same thing: a small always-on-top floating pill, one per session, that lives above every window on every desktop. It shows live cache TTL, flashes when Claude transitions from "active" to "idle" (the moment the user cares about most), and clicks back into the correct VSCode instance.
+
+The user previously built a version of this keyed to VSCode instances but without plugin hooks, so the timer was inaccurate. This spec describes rebuilding it on top of the plugin's accurate lifecycle events.
 
 ## Goals
 
+- **Peripheral "Claude is done" alert** — when any session transitions from `active` to `idle`, its pill plays a brief, attention-grabbing animation so the user notices from across the screen or a different monitor.
 - One always-on-top, clickable timer per active Claude session, visible on every virtual desktop.
 - Clicking a timer brings its VSCode instance to the foreground (across virtual desktops).
 - Timer stays visible after a session ends as a "resume — cache cold" launcher until the session restarts.
@@ -149,6 +158,24 @@ A timer window is a 160×34 frameless translucent pill:
 - **Drag:** Left-drag moves the pill. On mouse-up, `config.save_position(cwd, x, y)` if position-mode is "remember per-project".
 - **Right-click:** Context menu — "Hide this timer" (for this session), "Copy session ID", "Dismiss (delete state file)".
 
+### "Claude is done" transition animation
+
+When a pill's state transitions from `active` → `idle` (i.e., the `Stop` hook just fired — Claude finished its turn), the pill plays a 1.6-second **attention animation** designed to be visible from peripheral vision or on a different monitor. This is the app's primary value proposition for single-project users; it needs to be unmistakable without being obnoxious.
+
+The animation has three concurrent layers, all implemented with `QPropertyAnimation` and a custom `QGraphicsEffect`:
+
+1. **Scale bounce** — pill scales `1.0 → 1.18 → 0.96 → 1.0` over 600 ms with `QEasingCurve.OutBack`. The overshoot is what draws the eye.
+2. **Glow pulse** — a green `QGraphicsDropShadowEffect` with blur-radius animated `0 → 40 → 0` px, repeated 3× over 1.2 s. Creates a "breathing" halo around the pill.
+3. **Color flash** — pill background interpolates `green → white (80% opacity) → green` in the first 250 ms. A quick flashbulb effect.
+
+During the animation the timer text switches from `active · project-name` to `5:00 · project-name` at the 300 ms mark, so the user's eye is drawn to the pill just as the countdown begins.
+
+**No sound by default.** An optional soft chime (`QSoundEffect`, ~150 ms, -20 dB) can be enabled via the tray menu — off by default because users on calls or in shared spaces will hate a surprise ding.
+
+**Tray toggle:** "Flash when Claude finishes: ✓" — if unchecked, the transition happens without animation (direct state swap). Always-on by default.
+
+**Respect OS reduce-motion:** If Windows' "Show animations in Windows" accessibility setting is off, downgrade to color-flash only (no scale/glow) — read via `SystemParametersInfo(SPI_GETCLIENTAREAANIMATION)`.
+
 ### Position modes (toggle)
 
 Tray menu has two radio items:
@@ -219,19 +246,36 @@ Tray menu "Start on login" toggle writes/removes a `.lnk` shortcut in `%APPDATA%
 4. **Windows Defender / SmartScreen on first run of the PyInstaller exe** — unsigned. Mitigation: document in README. Signing is out of scope for v0.1.
 5. **Multiple monitors** — `TimerWindow` clamps positions to available screen geometry on each spawn; positions saved off-screen get re-clamped.
 
+## Rename migration: `claude-cache-ttl` → `ttyl`
+
+The existing plugin ships as `claude-cache-ttl`. TTYL is the product's permanent name going forward. Migrate in one commit, early in the build order, before any new code lands:
+
+- **Directory** — leave `claude-cache-ttl` as the repo name on disk for now; GitHub URL stability is more valuable than directory-name purity until v1.0. (The repo can be renamed on GitHub at any point — GitHub auto-redirects old URLs.)
+- **Plugin manifest** (`.claude-plugin/plugin.json`):
+  - `name`: `claude-cache-ttl` → `ttyl`
+  - `description`: rewrite around the "floating 'Claude is done' pill" framing; keep a line about the statusline segment as a secondary feature
+  - `version`: `0.1.0` → `0.2.0` (new user-visible surface)
+  - `keywords`: add `ttyl`, `floating-timer`, `notification`
+- **README** — rewrite top-of-file branding and tagline; keep the statusline install instructions lower in the doc as "just the segment" mode for minimalist users.
+- **Back-compat** — because `name` in `plugin.json` is changing, users already on `claude-cache-ttl@local-cache-ttl` will need to update their `enabledPlugins` key. Document this one-line change prominently in the v0.2.0 release notes.
+- **Env vars** — the existing `CACHE_TTL_SECONDS` / `CACHE_STATE_FILE` keep their names (no reason to churn; they still describe what they do).
+- **Desktop app package name** — `ttyl` (PyPI-friendly, short, already the brand).
+
 ## Build order
 
-1. Plugin: rewrite `hooks/hooks.json` + new `scripts/cache-hooks.sh`. Verify legacy statusline still works.
-2. Desktop app scaffold: `pyproject.toml`, `__main__.py`, tray icon with static "Quit" menu.
-3. `state.py` + unit tests (pure logic).
-4. `watcher.py` + integration tests.
-5. `timer_window.py` — non-interactive first (fixed position, no click).
-6. `vscode_finder.py` — PID walk + title-match, mocked tests, then live smoke test.
-7. `vdesk.py` — virtual desktop tracking, live smoke test.
-8. Wire click → `vscode_finder.focus()`.
-9. Drag + position persistence + mode toggle.
-10. "Cache cold" mode + GC.
-11. Start-on-login.
-12. README, manual test matrix, PyInstaller build.
+1. **TTYL rename** — `plugin.json`, README top, version bump. Single commit.
+2. Plugin: rewrite `hooks/hooks.json` + new `scripts/cache-hooks.sh`. Verify legacy statusline still works.
+3. Desktop app scaffold: `pyproject.toml` (package `ttyl`), `__main__.py`, tray icon with static "Quit" menu.
+4. `state.py` + unit tests (pure logic).
+5. `watcher.py` + integration tests.
+6. `timer_window.py` — non-interactive first (fixed position, no click, no animation).
+7. **"Claude is done" animation** — scale-bounce + glow-pulse + color-flash on `active → idle`. Build this early; it's the app's headline feature.
+8. `vscode_finder.py` — PID walk + title-match, mocked tests, then live smoke test.
+9. `vdesk.py` — virtual desktop tracking, live smoke test.
+10. Wire click → `vscode_finder.focus()`.
+11. Drag + position persistence + mode toggle.
+12. "Cache cold" mode + GC.
+13. Start-on-login.
+14. README, manual test matrix, PyInstaller build.
 
 Each step commits independently so the project is usable at any point.
