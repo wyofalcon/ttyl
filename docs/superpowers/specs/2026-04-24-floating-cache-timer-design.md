@@ -250,7 +250,8 @@ Tray menu "Start on login" toggle writes/removes a `.lnk` shortcut in `%APPDATA%
 
 The existing plugin ships as `claude-cache-ttl`. TTYL is the product's permanent name going forward. Migrate in one commit, early in the build order, before any new code lands:
 
-- **Directory** — leave `claude-cache-ttl` as the repo name on disk for now; GitHub URL stability is more valuable than directory-name purity until v1.0. (The repo can be renamed on GitHub at any point — GitHub auto-redirects old URLs.)
+- **GitHub repo** — no remote exists yet; create the repo as `wyofalcon/ttyl` from the start (`gh repo create wyofalcon/ttyl --public --source . --push`) when ready to publish. No rename or redirect needed.
+- **Local directory** — rename `C:\Users\Wyofa\projects\claude-cache-ttl\` → `C:\Users\Wyofa\projects\ttyl\`. Side effects: (a) VSCode workspace entries pointing at the old path need updating, (b) the Claude Code per-project memory dir at `~/.claude/projects/C--Users-Wyofa-projects-claude-cache-ttl\` is derived from the old path — it should be renamed to the new path's slug (`C--Users-Wyofa-projects-ttyl`) so existing memories carry over, (c) `settings.json` marketplace entries referencing the absolute path need updating.
 - **Plugin manifest** (`.claude-plugin/plugin.json`):
   - `name`: `claude-cache-ttl` → `ttyl`
   - `description`: rewrite around the "floating 'Claude is done' pill" framing; keep a line about the statusline segment as a secondary feature
