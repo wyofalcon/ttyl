@@ -1,0 +1,317 @@
+{
+  "_generator": {
+    "name": "daemonstrate",
+    "url": "https://github.com/wyofalcon/daemonstrate",
+    "generatedAt": "2026-04-25T14:01:00Z"
+  },
+  "title": "TTYL — Talk To You Later",
+  "subtitle": "Claude Code plugin: live prompt-cache TTL in the status line, plus an optional Windows desktop tile that flashes when Claude finishes a turn",
+  "plain_title": "TTYL — \"Talk To You Later\"",
+  "plain_subtitle": "Knows when Claude is working vs. waiting, so you don't lose your speed-up cache or miss a finished reply",
+  "audience_first": "technical",
+  "layers": [
+    {
+      "layer_name": "plugin-runtime",
+      "display_name": "Plugin Runtime",
+      "plain_display_name": "The Claude Code plugin half",
+      "accent": "#89B4FA",
+      "tech_badges": ["bash", "jq + sed fallback", "Claude Code Hooks", "JSON state files"],
+      "capabilities": [
+        "Routes 5 lifecycle hooks through one script",
+        "Per-session state in ~/.claude/cache-timers/",
+        "Legacy single-file mirror for back-compat",
+        "Status-line cache pill: green/yellow/red/expired",
+        "Drop-in standalone status line",
+        "jq optional — sed fallback when missing"
+      ],
+      "plain_capabilities": [
+        "Listens to five things Claude tells it",
+        "Remembers each chat in its own little file",
+        "Shows a coloured countdown in your status bar",
+        "Flips to spinning while Claude is working",
+        "Works even if your computer is missing extra tools"
+      ],
+      "key_nodes": [
+        {
+          "id": "pr-hooksjson",
+          "label": "hooks.json",
+          "plain_label": "The list of things to listen for",
+          "file_path": "hooks/hooks.json",
+          "detail": "Declares 5 lifecycle hooks → all route to cache-hooks.sh",
+          "plain_detail": "Tells Claude Code to run our script whenever any of 5 things happen"
+        },
+        {
+          "id": "pr-cachehooks",
+          "label": "cache-hooks.sh",
+          "plain_label": "The script that writes the state",
+          "file_path": "scripts/cache-hooks.sh",
+          "detail": "Single entry point — branches on $hook_event_name and writes the per-session JSON",
+          "plain_detail": "Decides what just happened and updates the chat's little file"
+        },
+        {
+          "id": "pr-segment",
+          "label": "cache-segment.sh",
+          "plain_label": "The cache pill",
+          "file_path": "scripts/cache-segment.sh",
+          "detail": "Reads per-session JSON and prints ⊕⚫🔴 cache M:SS",
+          "plain_detail": "Reads the file and prints the coloured countdown text"
+        },
+        {
+          "id": "pr-standalone",
+          "label": "statusline-standalone.sh",
+          "plain_label": "The drop-in status bar",
+          "file_path": "scripts/statusline-standalone.sh",
+          "detail": "Composes cache-segment + model name | for users without a custom statusline",
+          "plain_detail": "A ready-made status bar for people who don't have their own"
+        },
+        {
+          "id": "pr-perjson",
+          "label": "~/.claude/cache-timers/<sid>.json",
+          "plain_label": "One file per chat",
+          "file_path": "~/.claude/cache-timers/",
+          "detail": "Per-session state — keyed by Claude's session_id, atomically rewritten on every event",
+          "plain_detail": "Each Claude conversation gets its own tiny status file"
+        },
+        {
+          "id": "pr-legacy",
+          "label": "~/.claude/.cache-timestamp",
+          "plain_label": "The shared old-style file",
+          "file_path": "~/.claude/.cache-timestamp",
+          "detail": "Single-file mirror — back-compat for status lines that don't pass session_id",
+          "plain_detail": "An older shared file kept around so older setups still work"
+        },
+        {
+          "id": "pr-tests",
+          "label": "test_cache_hooks.sh",
+          "plain_label": "Bash tests for the script",
+          "file_path": "tests/test_cache_hooks.sh",
+          "detail": "Bash test harness — verifies every event writes the right state",
+          "plain_detail": "Automated checks that prove the script behaves correctly"
+        }
+      ],
+      "internal_edges": [
+        {"from": "pr-hooksjson", "to": "pr-cachehooks", "label": "5 hook events", "plain_label": "5 things happen → run script"},
+        {"from": "pr-cachehooks", "to": "pr-perjson", "label": "atomic rewrite", "plain_label": "saves the chat's file"},
+        {"from": "pr-cachehooks", "to": "pr-legacy", "label": "mirror state", "plain_label": "also updates the shared file"},
+        {"from": "pr-segment", "to": "pr-perjson", "label": "read state + epoch", "plain_label": "reads the chat's file"},
+        {"from": "pr-segment", "to": "pr-legacy", "label": "fallback when no sid", "plain_label": "fallback if it can't find the chat file"},
+        {"from": "pr-standalone", "to": "pr-segment", "label": "compose with | model", "plain_label": "wraps it with the model name"}
+      ],
+      "external_edges": [
+        {
+          "from": "pr-perjson",
+          "to_layer": "desktop-app",
+          "to_label_hint": "watcher",
+          "label": "filesystem poll → 1s",
+          "plain_label": "the desktop app reads these files"
+        }
+      ]
+    },
+    {
+      "layer_name": "desktop-app",
+      "display_name": "Desktop Companion",
+      "plain_display_name": "The floating timer on your screen",
+      "accent": "#A6E3A1",
+      "tech_badges": ["Python 3.11+", "PyQt6", "pywin32 / comtypes", "psutil", "PyInstaller"],
+      "capabilities": [
+        "Single floating tile with one row per active Claude session",
+        "Flashes the row when Claude finishes a turn (active → idle)",
+        "Click a row → focus the owning VSCode window",
+        "Yellow border on the row whose VSCode is foreground",
+        "Drag to move; persistent position; right-click menu",
+        "Pinned to the current Win11 virtual desktop every second"
+      ],
+      "plain_capabilities": [
+        "A small always-on-top window listing every active chat",
+        "Flashes when Claude finishes thinking",
+        "Click a row to jump back to that VSCode window",
+        "Highlights the row for whichever VSCode you're using right now",
+        "Drag it anywhere; remembers where you put it",
+        "Follows you between Windows virtual desktops"
+      ],
+      "key_nodes": [
+        {
+          "id": "da-main",
+          "label": "TtylApp / __main__.py",
+          "plain_label": "The app that boots everything",
+          "file_path": "desktop-timer/ttyl/__main__.py",
+          "detail": "QApplication, tray icon, startup wiring; 1s timer pins the tile to the current vdesk",
+          "plain_detail": "Starts the app, the tray icon, and the floating tile"
+        },
+        {
+          "id": "da-watcher",
+          "label": "CacheTimersWatcher",
+          "plain_label": "The folder watcher",
+          "file_path": "desktop-timer/ttyl/watcher.py",
+          "detail": "Polls ~/.claude/cache-timers/ every 1s; emits added/updated/removed/replaced Qt signals",
+          "plain_detail": "Checks the chat-files folder once a second and tells the rest of the app what changed"
+        },
+        {
+          "id": "da-aggtile",
+          "label": "AggregateTile",
+          "plain_label": "The floating tile",
+          "file_path": "desktop-timer/ttyl/aggregate_tile.py",
+          "detail": "Frameless top-most tile; QVBoxLayout of TimerRows; 1s tick refreshes every row",
+          "plain_detail": "The little always-on-top window with one row per chat"
+        },
+        {
+          "id": "da-row",
+          "label": "TimerRow",
+          "plain_label": "One row in the tile",
+          "file_path": "desktop-timer/ttyl/timer_row.py",
+          "detail": "Per-session row widget; drop-shadow flash on finish; drag-to-move; right-click menu",
+          "plain_detail": "One coloured pill per chat, with the countdown and the flash animation"
+        },
+        {
+          "id": "da-state",
+          "label": "compute(row, now, ttl)",
+          "plain_label": "The colour + countdown logic",
+          "file_path": "desktop-timer/ttyl/state.py",
+          "detail": "Pure-function TimerState builder: maps state + epoch → colour + label + remaining seconds",
+          "plain_detail": "Pure logic that turns the file's contents into the right colour and countdown"
+        },
+        {
+          "id": "da-vscode",
+          "label": "vscode_finder",
+          "plain_label": "Finds your VSCode window",
+          "file_path": "desktop-timer/ttyl/vscode_finder.py",
+          "detail": "Walks PID tree to a Code.exe ancestor, falls back to title-substring match against cwd parts",
+          "plain_detail": "Figures out which open VSCode window owns this chat"
+        },
+        {
+          "id": "da-vdesk",
+          "label": "vdesk (IVirtualDesktopManager)",
+          "plain_label": "Virtual desktop helper",
+          "file_path": "desktop-timer/ttyl/vdesk.py",
+          "detail": "ctypes wrapper around the Win11 IVirtualDesktopManager COM interface",
+          "plain_detail": "Talks to Windows to keep the tile on whatever desktop you're using"
+        },
+        {
+          "id": "da-config",
+          "label": "Config + start-on-login",
+          "plain_label": "Settings + auto-start",
+          "file_path": "desktop-timer/ttyl/config.py",
+          "detail": "Persistent JSON config (tile position, flash toggle); Startup-folder shortcut install/remove",
+          "plain_detail": "Remembers where the tile sits and whether it starts when you log in"
+        }
+      ],
+      "internal_edges": [
+        {"from": "da-main", "to": "da-watcher", "label": "owns + connects signals", "plain_label": "starts the watcher"},
+        {"from": "da-main", "to": "da-aggtile", "label": "owns + restores position", "plain_label": "shows the floating tile"},
+        {"from": "da-main", "to": "da-vdesk", "label": "1s pin timer", "plain_label": "keeps it on the current desktop"},
+        {"from": "da-watcher", "to": "da-aggtile", "label": "session_added / removed / updated", "plain_label": "tells the tile when chats appear or vanish"},
+        {"from": "da-aggtile", "to": "da-row", "label": "add/remove/replace rows", "plain_label": "manages the rows inside"},
+        {"from": "da-row", "to": "da-state", "label": "compute() per tick", "plain_label": "asks the logic for its colour"},
+        {"from": "da-row", "to": "da-vscode", "label": "click → find_hwnd", "plain_label": "click → finds your editor"},
+        {"from": "da-aggtile", "to": "da-config", "label": "persist position", "plain_label": "saves where you dragged it"}
+      ],
+      "external_edges": [
+        {
+          "from": "da-vscode",
+          "to_layer": "plugin-runtime",
+          "to_label_hint": "perjson",
+          "label": "reads pid + cwd from JSON",
+          "plain_label": "uses what the script wrote to find your editor"
+        }
+      ]
+    }
+  ],
+  "lanes": [
+    {"id": "lane-claude",  "label": "Claude Code",       "accent": "#89B4FA"},
+    {"id": "lane-hook",    "label": "cache-hooks.sh",    "accent": "#FAB387"},
+    {"id": "lane-state",   "label": "JSON state file",   "accent": "#F9E2AF"},
+    {"id": "lane-render",  "label": "Renderers",         "accent": "#CBA6F7"},
+    {"id": "lane-ui",      "label": "Desktop UI / OS",   "accent": "#A6E3A1"}
+  ],
+  "steps": [
+    {"id": "s-start",   "lane": "lane-claude", "order": 1, "label": "SessionStart fires",
+     "detail": "Claude opens a new chat — the SessionStart hook fires with session_id and cwd.",
+     "plain_label": "A new Claude chat opens",
+     "plain_detail": "The first thing that happens when you start chatting."},
+    {"id": "s-route1",  "lane": "lane-hook",   "order": 2, "label": "Branch on event",
+     "detail": "case \"$hook_event_name\" picks the state to write. SessionStart → state=none.",
+     "plain_label": "Decide what just happened",
+     "plain_detail": "The script looks at what kind of thing just happened and reacts.",
+     "overlay_value": "happy"},
+    {"id": "s-write1",  "lane": "lane-state",  "order": 3, "label": "Write state=none",
+     "detail": "atomic .json.tmp → mv pattern; one file per session_id, plus the legacy single-file mirror.",
+     "plain_label": "Save 'no cache yet' to the file",
+     "plain_detail": "The chat now has its own little status file."},
+    {"id": "s-prompt",  "lane": "lane-claude", "order": 4, "label": "UserPromptSubmit fires",
+     "detail": "You submit a prompt — the cache is being refreshed for the next turn.",
+     "plain_label": "You hit enter on a prompt",
+     "plain_detail": "Now Claude is doing work — the cache is being topped up."},
+    {"id": "s-write2",  "lane": "lane-state",  "order": 5, "label": "Write state=active",
+     "detail": "PreCompact gets the same treatment so /compact also flips the indicator to active.",
+     "plain_label": "Save 'working' to the file",
+     "plain_detail": "The status file now says Claude is busy."},
+    {"id": "s-render1", "lane": "lane-render", "order": 6, "label": "Statusline reads file → 🔄 active",
+     "detail": "cache-segment.sh reads .state and prints the spinner pill while Claude works.",
+     "plain_label": "Status bar shows the spinning icon",
+     "plain_detail": "Your status bar now shows that Claude is working."},
+    {"id": "s-stop",    "lane": "lane-claude", "order": 7, "label": "Stop fires",
+     "detail": "Claude finishes its turn — cache was just refreshed, countdown begins.",
+     "plain_label": "Claude finishes its reply",
+     "plain_detail": "Claude is done thinking and writing for this turn."},
+    {"id": "s-write3",  "lane": "lane-state",  "order": 8, "label": "Write state=idle + epoch",
+     "detail": "Records 'idle:<unix_ts>' so the segment can compute remaining = TTL - (now - epoch).",
+     "plain_label": "Save 'waiting' + the time",
+     "plain_detail": "The file now records when Claude finished, so the countdown can start."},
+    {"id": "s-render2", "lane": "lane-render", "order": 9, "label": "Statusline shows 🟢 4:32 → 🟡 1:47 → 🔴",
+     "detail": "Segment recomputes every second; colour switches at 2:00 (yellow) and 1:00 (red), then 'expired'.",
+     "plain_label": "Countdown ticks down in your status bar",
+     "plain_detail": "You see the colour change as time runs out before the cache expires."},
+    {"id": "s-poll",    "lane": "lane-render", "order": 9, "label": "Watcher poll detects change",
+     "detail": "CacheTimersWatcher polls the dir every 1s; emits session_updated when mtime changes.",
+     "plain_label": "Desktop app notices the change",
+     "plain_detail": "The floating tile is also reading the file and notices the update."},
+    {"id": "s-flash",   "lane": "lane-ui",     "order": 10, "label": "TimerRow flashes (active → idle)",
+     "detail": "TimerState.is_finish_transition triggers the drop-shadow glow animation on the row.",
+     "plain_label": "The row flashes to grab your attention",
+     "plain_detail": "The little pill on screen lights up so you notice Claude is done."},
+    {"id": "s-click",   "lane": "lane-ui",     "order": 11, "label": "Click → vscode_finder.find_hwnd",
+     "detail": "Walks the recorded pid up the process tree to Code.exe; falls back to window-title match against cwd parts.",
+     "plain_label": "You click and it jumps to your editor",
+     "plain_detail": "Clicking the row brings the right VSCode window to the front."},
+    {"id": "s-end",     "lane": "lane-claude", "order": 12, "label": "SessionEnd fires",
+     "detail": "Hook deletes ~/.claude/cache-timers/<sid>.json so the watcher promptly removes the row.",
+     "plain_label": "You close the chat",
+     "plain_detail": "The chat ends and the floating tile drops the row."},
+
+    {"id": "s-jq",      "lane": "lane-hook",   "order": 4, "label": "jq missing? → sed fallback",
+     "detail": "If jq isn't on PATH, the script falls back to sed-based JSON extraction so default Git Bash on Windows still works.",
+     "plain_label": "If a tool is missing, use a backup",
+     "plain_detail": "The script can still read the data even on a basic computer setup.",
+     "overlay_value": "fallback"},
+    {"id": "s-pidkill", "lane": "lane-render", "order": 11, "label": "Watcher: psutil.pid_exists → evict",
+     "detail": "Hard kill / closed terminal means SessionEnd never fires. Watcher checks the recorded pid each scan and deletes the file when the owning process is gone.",
+     "plain_label": "Crashed chat? Quietly remove its row",
+     "plain_detail": "If a chat crashes, the floating tile cleans up after itself.",
+     "overlay_value": "fallback"}
+  ],
+  "handoffs": [
+    {"from": "s-start",   "to": "s-route1",  "label": "stdin JSON",         "plain_label": "tells the script"},
+    {"from": "s-route1",  "to": "s-write1",  "label": "case=SessionStart",  "plain_label": "writes the file"},
+    {"from": "s-prompt",  "to": "s-route1",  "label": "stdin JSON",         "plain_label": "tells the script"},
+    {"from": "s-route1",  "to": "s-write2",  "label": "case=UserPromptSubmit", "plain_label": "marks 'working'"},
+    {"from": "s-write2",  "to": "s-render1", "label": "1s refresh",         "plain_label": "status bar updates"},
+    {"from": "s-stop",    "to": "s-route1",  "label": "stdin JSON",         "plain_label": "tells the script"},
+    {"from": "s-route1",  "to": "s-write3",  "label": "case=Stop",          "plain_label": "marks 'waiting' + time"},
+    {"from": "s-write3",  "to": "s-render2", "label": "1s refresh",         "plain_label": "countdown begins"},
+    {"from": "s-write3",  "to": "s-poll",    "label": "mtime change",       "plain_label": "tile notices"},
+    {"from": "s-poll",    "to": "s-flash",   "label": "session_updated signal", "plain_label": "row flashes"},
+    {"from": "s-flash",   "to": "s-click",   "label": "user clicks the row","plain_label": "you click"},
+    {"from": "s-end",     "to": "s-route1",  "label": "case=SessionEnd",    "plain_label": "tells the script"},
+    {"from": "s-route1",  "to": "s-pidkill", "label": "or: PID dead between scans", "plain_label": "or: crash detected", "overlay_value": "fallback"},
+    {"from": "s-pidkill", "to": "s-flash",   "label": "row removed",        "plain_label": "row vanishes",       "overlay_value": "fallback"},
+    {"from": "s-route1",  "to": "s-jq",      "label": "(when extracting fields)", "plain_label": "(when reading the message)", "overlay_value": "fallback"}
+  ],
+  "overlay": {
+    "channel": "edge_style",
+    "title": "Failure / fallback paths",
+    "values": {
+      "happy":    {"label": "Happy path",            "color": "#999999", "dashed": false},
+      "fallback": {"label": "Fallback / failure handling", "color": "#dc2626", "dashed": true}
+    }
+  }
+}

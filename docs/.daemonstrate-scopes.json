@@ -1,0 +1,126 @@
+{
+  "_generator": {
+    "name": "daemonstrate",
+    "url": "https://github.com/wyofalcon/daemonstrate",
+    "generatedAt": "2026-04-25T14:01:00Z"
+  },
+  "version": 2,
+  "lastSha": "786e954649dad3f828728eb117475a01bdcceb9f",
+  "identifiedAt": "2026-04-25T14:01:00Z",
+  "techStack": [
+    "bash + jq (sed fallback)",
+    "Claude Code Hooks (5 lifecycle events)",
+    "Python 3.11+",
+    "PyQt6",
+    "pywin32 / comtypes (Win32 + IVirtualDesktopManager COM)",
+    "psutil",
+    "PyInstaller"
+  ],
+  "lastStructure": "hybrid",
+  "scopes": [
+    {
+      "id": "plugin-runtime",
+      "display_name": "Plugin Runtime",
+      "plain_display_name": "The Claude Code plugin half",
+      "kind": "layer",
+      "accent": "#89B4FA",
+      "paths": [
+        ".claude-plugin/plugin.json",
+        "hooks/hooks.json",
+        "scripts/*.sh",
+        "tests/test_cache_hooks.sh"
+      ],
+      "tech_badges": ["bash", "jq + sed fallback", "Claude Code Hooks", "JSON state files"],
+      "diagramType": "system_flowchart",
+      "diagramTypeReason": "Component + state-file map. Readers want to see which script writes which file and which file the segment reads.",
+      "overlay": null,
+      "overlayReason": null
+    },
+    {
+      "id": "desktop-app",
+      "display_name": "Desktop Companion",
+      "plain_display_name": "The floating timer on your screen",
+      "kind": "layer",
+      "accent": "#A6E3A1",
+      "paths": [
+        "desktop-timer/pyproject.toml",
+        "desktop-timer/ttyl/**/*.py",
+        "desktop-timer/tests/**/*.py",
+        "desktop-timer/build.py",
+        "desktop-timer/TTYL.spec"
+      ],
+      "tech_badges": ["Python 3.11+", "PyQt6", "pywin32 / comtypes", "psutil", "PyInstaller"],
+      "diagramType": "system_flowchart",
+      "diagramTypeReason": "Qt class + signal map. Readers want to trace how a filesystem change becomes a Qt signal becomes a row update becomes a flash.",
+      "overlay": null,
+      "overlayReason": null
+    },
+    {
+      "id": "session-lifecycle",
+      "display_name": "Session Lifecycle",
+      "plain_display_name": "How a Claude turn becomes a coloured pill on your screen",
+      "kind": "feature_slice",
+      "accent": "#FAB387",
+      "paths": [
+        "scripts/cache-hooks.sh",
+        "scripts/cache-segment.sh",
+        "hooks/hooks.json",
+        "desktop-timer/ttyl/watcher.py",
+        "desktop-timer/ttyl/aggregate_tile.py",
+        "desktop-timer/ttyl/timer_row.py",
+        "desktop-timer/ttyl/state.py",
+        "desktop-timer/ttyl/vscode_finder.py"
+      ],
+      "tech_badges": ["bash", "Claude Code Hooks", "PyQt6 signals", "filesystem polling"],
+      "diagramType": "swimlane",
+      "diagramTypeReason": "Cross-cutting feature slice: the whole point is the handoff between Claude Code, the bash hook, the JSON file on disk, the status-line renderer, and the desktop watcher/UI. Lanes make the responsibility split visible without reading edge labels.",
+      "overlay": "error_paths",
+      "overlayReason": "The plugin's robustness story is its fallbacks (jq missing → sed; SessionEnd never fires → psutil PID-alive eviction). Surfacing them as dashed red edges separates the resilience design from the happy path."
+    }
+  ],
+  "outputs": {
+    "architecture-detailed.drawio": {
+      "logical_pages": ["overview", "plugin-runtime", "desktop-app"],
+      "tabs": 6,
+      "first_tab": "technical"
+    },
+    "architecture-swimlane.drawio": {
+      "logical_pages": ["session-lifecycle"],
+      "tabs": 2,
+      "first_tab": "technical"
+    },
+    "drilldown-plugin-runtime-cachehooks.drawio": {
+      "logical_pages": ["plugin-runtime/cache-hooks.sh internals"],
+      "tabs": 2,
+      "first_tab": "plain"
+    }
+  },
+  "drilldowns": {
+    "plugin-runtime/cache-hooks.sh": {
+      "exploredAt": "2026-04-25T14:01:00Z",
+      "source_hash": "967514f6e6ce7fc809fee3f61010b3b9e444f50b",
+      "source_region": {"file": "scripts/cache-hooks.sh"},
+      "diagramType": "swimlane",
+      "diagramTypeReason": "Single file with a case-statement dispatcher and several defensive fallback branches — lanes (Read input / Decide / Write / Cleanup) make the dispatch + safety net visible in one frame.",
+      "overlay": "error_paths",
+      "terminal": false,
+      "sub_nodes": [
+        {"id": "d-read",     "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 20, "end_line": 20}},
+        {"id": "d-jq",       "kind": "check",    "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 24, "end_line": 25}},
+        {"id": "d-sed",      "kind": "external_call", "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 27, "end_line": 27}},
+        {"id": "d-case",     "kind": "decision", "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 39, "end_line": 51}},
+        {"id": "d-ssn",      "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 40, "end_line": 40}},
+        {"id": "d-act",      "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 41, "end_line": 41}},
+        {"id": "d-idle",     "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 42, "end_line": 42}},
+        {"id": "d-end",      "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 43, "end_line": 48}},
+        {"id": "d-other",    "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 50, "end_line": 50}},
+        {"id": "d-legacy",   "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 53, "end_line": 53}},
+        {"id": "d-empty",    "kind": "check",    "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 55, "end_line": 55}},
+        {"id": "d-preserve", "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 66, "end_line": 71}},
+        {"id": "d-write",    "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 73, "end_line": 86}},
+        {"id": "d-dedupe",   "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 57, "end_line": 64}},
+        {"id": "d-gc",       "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 88, "end_line": 88}}
+      ]
+    }
+  }
+}
