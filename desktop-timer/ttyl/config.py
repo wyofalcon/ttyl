@@ -14,7 +14,6 @@ class Config:
         self._data: dict = {
             "tile_position": None,
             "flash_on_finish": True,
-            "chime_on_finish": False,
         }
         if self._path.exists():
             try:

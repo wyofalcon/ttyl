@@ -62,7 +62,14 @@ class CacheTimersWatcher(QObject):
         current: Dict[str, tuple[float, str]] = {}
 
         for path in self._dir.glob("*.json"):
+            # Read mtime BEFORE the file contents. If we read first and stat
+            # second, a write landing between the two would record a newer
+            # mtime than the data we parsed — and on the next scan the mtime
+            # comparison would say "unchanged" and we'd never re-emit
+            # session_updated for the version we missed. Stat-then-read at
+            # worst causes a spurious extra emit, never a missed one.
             try:
+                mtime = path.stat().st_mtime
                 data = json.loads(path.read_text())
             except (OSError, json.JSONDecodeError):
                 continue
@@ -90,7 +97,6 @@ class CacheTimersWatcher(QObject):
                 except OSError:
                     pass
                 continue
-            mtime = path.stat().st_mtime
             current[sid] = (mtime, cwd)
 
         replaced_old: set[str] = set()
