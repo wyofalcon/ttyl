@@ -28,7 +28,25 @@ extract() {
   fi
 }
 
+# Escape \ and " so a value can be safely embedded in a JSON string.
+# Defense in depth: even if upstream session_id/cwd/etc are well-formed today,
+# a future input with a literal backslash or quote would otherwise produce
+# invalid JSON or break the same-cwd grep cleanup below.
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  printf '%s' "$s"
+}
+
 session_id=$(extract session_id)
+# session_id is used as a filename; reject anything outside [A-Za-z0-9_-] to
+# block path traversal (e.g. session_id="../../.ssh/authorized_keys" would
+# otherwise be written and rm'd on SessionEnd). Treat invalid as "missing"
+# so the legacy-file write still happens but the per-session paths are skipped.
+case "$session_id" in
+  *[!a-zA-Z0-9_-]*) session_id="" ;;
+esac
 cwd=$(extract cwd)
 event=$(extract hook_event_name)
 
@@ -57,7 +75,7 @@ printf '%s' "$legacy_val" > "$legacy_file" 2>/dev/null
 if [ "$event" = "SessionStart" ] && [ -n "$cwd" ]; then
   for f in "$timers_dir"/*.json; do
     [ -f "$f" ] || continue
-    if grep -qF "\"cwd\":\"${cwd}\"" "$f" 2>/dev/null; then
+    if grep -qF "\"cwd\":\"$(json_escape "$cwd")\"" "$f" 2>/dev/null; then
       case "$f" in *"/${session_id}.json") ;; *) rm -f "$f" ;; esac
     fi
   done
@@ -72,15 +90,15 @@ fi
 
 {
   printf '{'
-  printf '"session_id":"%s",' "$session_id"
+  printf '"session_id":"%s",' "$(json_escape "$session_id")"
   printf '"state":"%s",' "$state"
   printf '"epoch":%s,' "$now"
-  printf '"cwd":"%s",' "$cwd"
-  printf '"project_name":"%s",' "$project_name"
+  printf '"cwd":"%s",' "$(json_escape "$cwd")"
+  printf '"project_name":"%s",' "$(json_escape "$project_name")"
   printf '"pid":%s,' "$pid"
   printf '"started_at":%s,' "$started_at"
   printf '"last_update":%s,' "$now"
-  printf '"hook_event":"%s"' "$event"
+  printf '"hook_event":"%s"' "$(json_escape "$event")"
   printf '}'
 } > "$timers_dir/${session_id}.json.tmp" 2>/dev/null \
   && mv "$timers_dir/${session_id}.json.tmp" "$timers_dir/${session_id}.json" 2>/dev/null

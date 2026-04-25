@@ -98,5 +98,35 @@ echo '{"session_id":"new","cwd":"/c/Users/w/projects/demo","hook_event_name":"Se
   && pass "SessionStart writes new session file" \
   || fail "new session file" "missing"
 
+# --- Path-traversal session_id is rejected, not written ---
+mkdir -p "$HOME/.claude/cache-timers"
+existing_count=$(ls "$HOME/.claude/cache-timers"/*.json 2>/dev/null | wc -l)
+echo '{"session_id":"../evil","cwd":"/c/Users/w/projects/demo","hook_event_name":"SessionStart"}' \
+  | PPID_OVERRIDE=9999 bash "$script"
+new_count=$(ls "$HOME/.claude/cache-timers"/*.json 2>/dev/null | wc -l)
+[ ! -e "$HOME/.claude/evil.json" ] && [ "$existing_count" = "$new_count" ] \
+  && pass "Path-traversal session_id silently rejected, no per-session file written" \
+  || fail "Path-traversal" "evil.json or stray file appeared (count $existing_count -> $new_count, evil exists: $([ -e "$HOME/.claude/evil.json" ] && echo yes || echo no))"
+
+# Canary file: confirm SessionEnd with traversal session_id can't unlink it.
+touch "$HOME/.claude/canary"
+echo '{"session_id":"../canary","cwd":"/c/Users/w/projects/demo","hook_event_name":"SessionEnd"}' \
+  | PPID_OVERRIDE=9999 bash "$script"
+[ -f "$HOME/.claude/canary" ] \
+  && pass "SessionEnd with traversal session_id can't delete arbitrary files" \
+  || fail "SessionEnd traversal" "canary was deleted"
+rm -f "$HOME/.claude/canary"
+
+# --- cwd containing JSON metacharacters survives the round-trip ---
+# Only meaningful with jq present; the sed fallback has limited JSON-aware
+# extraction and is a pre-existing limitation, not in scope for this fix.
+if command -v jq >/dev/null 2>&1; then
+  echo '{"session_id":"qt1","cwd":"/p/has\"quote","hook_event_name":"SessionStart"}' \
+    | PPID_OVERRIDE=9999 bash "$script"
+  grep -qF '"cwd":"/p/has\"quote"' "$HOME/.claude/cache-timers/qt1.json" \
+    && pass "cwd with embedded quote is JSON-escaped in output" \
+    || fail "cwd quote escape" "content: $(cat "$HOME/.claude/cache-timers/qt1.json" 2>&1)"
+fi
+
 rm -rf "$tmp"
 [ "$fail" -eq 0 ] && { printf "\nAll tests passed\n"; exit 0; } || { printf "\n%d failures\n" "$fail"; exit 1; }
