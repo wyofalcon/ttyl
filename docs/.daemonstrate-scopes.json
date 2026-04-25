@@ -2,11 +2,11 @@
   "_generator": {
     "name": "daemonstrate",
     "url": "https://github.com/wyofalcon/daemonstrate",
-    "generatedAt": "2026-04-25T14:01:00Z"
+    "generatedAt": "2026-04-25T14:55:00Z"
   },
   "version": 2,
-  "lastSha": "786e954649dad3f828728eb117475a01bdcceb9f",
-  "identifiedAt": "2026-04-25T14:01:00Z",
+  "lastSha": "da71315",
+  "identifiedAt": "2026-04-25T14:55:00Z",
   "techStack": [
     "bash + jq (sed fallback)",
     "Claude Code Hooks (5 lifecycle events)",
@@ -97,8 +97,8 @@
   },
   "drilldowns": {
     "plugin-runtime/cache-hooks.sh": {
-      "exploredAt": "2026-04-25T14:01:00Z",
-      "source_hash": "967514f6e6ce7fc809fee3f61010b3b9e444f50b",
+      "exploredAt": "2026-04-25T14:55:00Z",
+      "source_hash": "57f3ebde6ce0421fc51f52d432d92d4d315f99df",
       "source_region": {"file": "scripts/cache-hooks.sh"},
       "diagramType": "swimlane",
       "diagramTypeReason": "Single file with a case-statement dispatcher and several defensive fallback branches — lanes (Read input / Decide / Write / Cleanup) make the dispatch + safety net visible in one frame.",
@@ -108,18 +108,19 @@
         {"id": "d-read",     "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 20, "end_line": 20}},
         {"id": "d-jq",       "kind": "check",    "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 24, "end_line": 25}},
         {"id": "d-sed",      "kind": "external_call", "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 27, "end_line": 27}},
-        {"id": "d-case",     "kind": "decision", "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 39, "end_line": 51}},
-        {"id": "d-ssn",      "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 40, "end_line": 40}},
-        {"id": "d-act",      "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 41, "end_line": 41}},
-        {"id": "d-idle",     "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 42, "end_line": 42}},
-        {"id": "d-end",      "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 43, "end_line": 48}},
-        {"id": "d-other",    "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 50, "end_line": 50}},
-        {"id": "d-legacy",   "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 53, "end_line": 53}},
-        {"id": "d-empty",    "kind": "check",    "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 55, "end_line": 55}},
-        {"id": "d-preserve", "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 66, "end_line": 71}},
-        {"id": "d-write",    "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 73, "end_line": 86}},
-        {"id": "d-dedupe",   "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 57, "end_line": 64}},
-        {"id": "d-gc",       "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 88, "end_line": 88}}
+        {"id": "d-validate", "kind": "check",    "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 47, "end_line": 49}, "added_in": "ad32928"},
+        {"id": "d-case",     "kind": "decision", "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 57, "end_line": 69}},
+        {"id": "d-ssn",      "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 58, "end_line": 58}},
+        {"id": "d-act",      "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 59, "end_line": 59}},
+        {"id": "d-idle",     "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 60, "end_line": 60}},
+        {"id": "d-end",      "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 61, "end_line": 67}},
+        {"id": "d-other",    "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 68, "end_line": 68}},
+        {"id": "d-legacy",   "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 71, "end_line": 71}},
+        {"id": "d-empty",    "kind": "check",    "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 73, "end_line": 73}},
+        {"id": "d-preserve", "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 84, "end_line": 89}},
+        {"id": "d-write",    "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 91, "end_line": 104}},
+        {"id": "d-dedupe",   "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 75, "end_line": 82}},
+        {"id": "d-gc",       "kind": "action",   "source_region": {"file": "scripts/cache-hooks.sh", "start_line": 106, "end_line": 106}}
       ]
     }
   }
