@@ -56,3 +56,28 @@ def test_window_reloads_state_from_disk(make_session, qtbot):
     w.refresh()
     assert "active" in w.label_text()
     assert w.current_color() == "blue"
+
+
+def test_flash_animation_triggers_on_active_to_idle(make_session, qtbot):
+    path = make_session(session_id="flash1", state="active", project_name="demo")
+    w = TimerWindow(json_path=path, now_fn=lambda: 1000, ttl=300)
+    qtbot.addWidget(w)
+    w.refresh()
+    assert w.flash_count() == 0
+
+    data = json.loads(path.read_text())
+    data["state"] = "idle"
+    data["epoch"] = 1000
+    path.write_text(json.dumps(data))
+    w.refresh()
+
+    assert w.flash_count() == 1
+
+
+def test_flash_does_not_trigger_on_idle_to_idle(make_session, qtbot):
+    path = make_session(session_id="flash2", state="idle", epoch=1000, project_name="demo")
+    w = TimerWindow(json_path=path, now_fn=lambda: 1000, ttl=300)
+    qtbot.addWidget(w)
+    w.refresh()
+    w.refresh()
+    assert w.flash_count() == 0
