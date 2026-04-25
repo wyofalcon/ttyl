@@ -14,6 +14,7 @@ from PyQt6.QtCore import (
     QPropertyAnimation,
     QRect,
     QSequentialAnimationGroup,
+    pyqtSignal,
 )
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QLabel, QWidget
@@ -31,6 +32,8 @@ _PALETTE = {
 
 
 class TimerWindow(QWidget):
+    focus_requested = pyqtSignal(dict)
+
     _flash_counter = 0
 
     def __init__(
@@ -80,6 +83,15 @@ class TimerWindow(QWidget):
 
     def flash_count(self) -> int:
         return self._flash_counter
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            try:
+                data = json.loads(self._json_path.read_text())
+            except (OSError, json.JSONDecodeError):
+                return
+            self.focus_requested.emit(data)
+        super().mousePressEvent(event)
 
     def _play_finish_animation(self) -> None:
         self._flash_counter += 1

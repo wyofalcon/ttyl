@@ -81,3 +81,13 @@ def test_flash_does_not_trigger_on_idle_to_idle(make_session, qtbot):
     w.refresh()
     w.refresh()
     assert w.flash_count() == 0
+
+
+def test_click_emits_focus_request(make_session, qtbot):
+    path = make_session(session_id="click1", project_name="demo")
+    w = TimerWindow(json_path=path, now_fn=lambda: 1050, ttl=300)
+    qtbot.addWidget(w)
+    w.refresh()
+    with qtbot.waitSignal(w.focus_requested, timeout=500) as sig:
+        qtbot.mouseClick(w, Qt.MouseButton.LeftButton)
+    assert sig.args[0]["project_name"] == "demo"

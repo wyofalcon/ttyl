@@ -49,6 +49,17 @@ class TtylApp:
         w.refresh()
         w.show()
         self.windows[sid] = w
+        w.focus_requested.connect(self._on_focus_request)
+
+    def _on_focus_request(self, row: dict) -> None:
+        from ttyl import vscode_finder
+        hwnd = vscode_finder.find_hwnd(
+            pid=int(row.get("pid") or 0),
+            cwd=row.get("cwd", ""),
+            project_name=row.get("project_name", ""),
+        )
+        if hwnd:
+            vscode_finder.focus(hwnd)
 
     def _on_updated(self, path: str) -> None:
         sid = self._sid_from_path(path)
