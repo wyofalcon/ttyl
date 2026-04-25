@@ -68,12 +68,20 @@ class TtylApp:
         self.windows[sid] = w
         w.focus_requested.connect(self._on_focus_request)
         w.position_changed.connect(lambda x, y, p=path: self._persist_position(p, x, y))
+        w.dismiss_requested.connect(self._on_dismiss)
 
     def _cwd_for(self, path: str) -> str:
         try:
             return json.loads(Path(path).read_text()).get("cwd", "")
         except (OSError, json.JSONDecodeError):
             return ""
+
+    def _on_dismiss(self, sid: str) -> None:
+        path = _timers_dir() / f"{sid}.json"
+        try:
+            path.unlink()
+        except OSError:
+            pass
 
     def _persist_position(self, path: str, x: int, y: int) -> None:
         if self.config.position_mode != "remember":

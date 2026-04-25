@@ -34,6 +34,7 @@ _PALETTE = {
 class TimerWindow(QWidget):
     focus_requested = pyqtSignal(dict)
     position_changed = pyqtSignal(int, int)
+    dismiss_requested = pyqtSignal(str)
 
     _flash_counter = 0
 
@@ -97,6 +98,23 @@ class TimerWindow(QWidget):
         if self._drag_origin is not None and event.buttons() & Qt.MouseButton.LeftButton:
             self.move(event.globalPosition().toPoint() - self._drag_origin)
         super().mouseMoveEvent(event)
+
+    def contextMenuEvent(self, event):
+        from PyQt6.QtWidgets import QApplication, QMenu
+
+        menu = QMenu(self)
+        dismiss = menu.addAction("Dismiss (delete state file)")
+        copy_id = menu.addAction("Copy session ID")
+        show_at = event.globalPos()
+        choice = getattr(menu, "exec")(show_at)
+        try:
+            data = json.loads(self._json_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            return
+        if choice == dismiss:
+            self.dismiss_requested.emit(data.get("session_id", self._json_path.stem))
+        elif choice == copy_id:
+            QApplication.clipboard().setText(data.get("session_id", ""))
 
     def mouseReleaseEvent(self, event):
         if event.button() != Qt.MouseButton.LeftButton:
