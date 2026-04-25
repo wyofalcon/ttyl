@@ -1,35 +1,14 @@
 {
-  "description": "Tracks prompt-cache lifecycle state in ~/.claude/.cache-timestamp. Three possible values: 'none' (fresh session), 'active' (request in flight), or 'idle:<epoch>' (counting down).",
+  "description": "TTYL — writes per-session state to ~/.claude/cache-timers/ AND the legacy ~/.claude/.cache-timestamp (for the unchanged statusline segment). All three events route through scripts/cache-hooks.sh.",
   "hooks": {
     "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo none > \"${HOME}/.claude/.cache-timestamp\""
-          }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cache-hooks.sh\"" } ] }
     ],
     "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo active > \"${HOME}/.claude/.cache-timestamp\""
-          }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cache-hooks.sh\"" } ] }
     ],
     "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo idle:$(date +%s) > \"${HOME}/.claude/.cache-timestamp\""
-          }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cache-hooks.sh\"" } ] }
     ]
   }
 }
