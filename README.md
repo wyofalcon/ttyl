@@ -1,10 +1,11 @@
 # TTYL
 
-**Talk To You Later** — a Claude Code plugin + desktop companion that tells you when Claude is done working.
+**Talk To You Later** — know when Claude is done and never lose your prompt cache.
 
-A small floating pill hovers on every virtual desktop, showing live prompt-cache TTL for each active Claude session. When Claude finishes a turn, the pill flashes so you notice from across the room. Click it to jump straight back to the owning VSCode window.
+TTYL is a [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) plugin that ships two things:
 
-Also ships a minimal statusline segment for users who just want the cache countdown.
+- **A status line segment** showing live prompt-cache TTL — per Claude session, so two terminals don't share a single countdown.
+- **An optional Windows desktop companion** that floats a single always-on-top tile listing every active Claude session, flashes the row when Claude finishes a turn, and click-focuses the owning VSCode window.
 
 ```
 🟢 cache 4:32 | Opus 4.7 | my-project | main
@@ -14,47 +15,33 @@ Also ships a minimal statusline segment for users who just want the cache countd
 🔄 active | Opus 4.7 | my-project | main       ← while Claude is thinking
 ```
 
-## Why this exists
+## Why
 
-Anthropic's prompt cache has a 5-minute TTL. Every request within that window refreshes it; a gap of 5+ minutes makes your next prompt uncached — slower *and* more expensive (cache reads are 10% of input-token cost).
+Anthropic's prompt cache has a 5-minute TTL. Every request inside that window refreshes it; let it lapse and the next prompt re-pays full input-token cost (cache reads are 10% of input cost — a real savings on long Claude Code sessions).
 
-Claude Code doesn't expose a cache expiry field to the status line, so nobody can display the "real" countdown. This plugin approximates it client-side by tracking lifecycle events (`SessionStart`, `UserPromptSubmit`, `Stop`) and running a countdown only when Claude is idle — never while it's actively sending requests (which would be misleading, since those requests are *refreshing* the cache).
+Claude Code doesn't expose a cache expiry field to the status line, so nobody can render the "real" countdown. TTYL approximates it client-side from lifecycle hooks (`SessionStart`, `UserPromptSubmit`, `Stop`) — the countdown ticks only while Claude is idle, never while it's mid-request, since active requests are *refreshing* the cache.
 
 ## How it works
 
-Three hooks write a tiny state marker to `~/.claude/.cache-timestamp`:
+Five hooks route through one bash script that writes per-session state to `~/.claude/cache-timers/<session-id>.json` (and a legacy single-file mirror at `~/.claude/.cache-timestamp` for back-compat):
 
-| Event | Writes | Meaning |
+| Event | State written | Meaning |
 |---|---|---|
 | `SessionStart` | `none` | Fresh session, no request yet |
 | `UserPromptSubmit` | `active` | Request in flight, cache refreshing |
-| `Stop` | `idle:<epoch>` | Turn ended, countdown starts from `<epoch>` |
+| `PreCompact` | `active` | `/compact` in flight — treated as a refresh, since compaction sends a real request |
+| `Stop` | `idle` (with epoch) | Turn ended, countdown starts |
+| `SessionEnd` | (file deleted) | Session shut down — desktop tile removes the row |
 
-A helper script (`cache-segment.sh`) reads that state and prints the appropriate segment. You compose it into your own `statusLine`, or use the included standalone script if you don't have one.
+The status line script reads the per-session file keyed by the `session_id` that Claude Code passes to it on stdin. Each terminal sees its own cache state.
+
+If Claude is hard-killed (terminal closed, process crash) the `SessionEnd` hook can't fire. The desktop watcher catches that case by checking whether the recorded `pid` is still alive on each scan and evicting the row when the owning process is gone.
 
 ## Install
 
-### Option 1 — via a local marketplace entry
+### As a Claude Code plugin (recommended)
 
-Add this to your `~/.claude/settings.json`:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "local-ttyl": {
-      "source": {
-        "source": "directory",
-        "path": "/absolute/path/to/ttyl"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "ttyl@local-ttyl": true
-  }
-}
-```
-
-### Option 2 — via GitHub once published
+Add to your `~/.claude/settings.json`:
 
 ```json
 {
@@ -72,13 +59,31 @@ Add this to your `~/.claude/settings.json`:
 }
 ```
 
-## Configure the status line
+Or, for local development against a clone:
 
-You need **both** a `statusLine` and `refreshInterval: 1` — the interval is what makes the countdown tick every second.
+```json
+{
+  "extraKnownMarketplaces": {
+    "local-ttyl": {
+      "source": {
+        "source": "directory",
+        "path": "/absolute/path/to/your/ttyl/clone"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "ttyl@local-ttyl": true
+  }
+}
+```
 
-### A — You don't have a custom status line yet
+### Wire up your status line
 
-Use the bundled standalone. It shows `cache | model` and nothing else.
+You need both a `statusLine` command and `refreshInterval: 1` — the interval is what makes the countdown tick.
+
+#### A — You don't have a custom status line
+
+Use the bundled standalone. It renders `cache | model` and nothing else.
 
 ```json
 {
@@ -90,13 +95,16 @@ Use the bundled standalone. It shows `cache | model` and nothing else.
 }
 ```
 
-### B — You already have a custom status line
+#### B — You already have a custom status line
 
-Invoke `cache-segment.sh` from inside your own script and compose its output into your existing line. Example:
+Invoke `cache-segment.sh` from your script and compose its output. Pass the session id along so the segment knows which file to read:
 
 ```bash
-# somewhere in your existing statusline.sh:
-cache_seg=$(bash "${CLAUDE_CACHE_TTL_ROOT:-$HOME/.claude/plugins/cache-ttl}/scripts/cache-segment.sh")
+# inside your existing statusline.sh
+input=$(cat)
+session_id=$(echo "$input" | jq -r '.session_id // ""')
+cache_seg=$(CLAUDE_SESSION_ID="$session_id" \
+  bash "${CLAUDE_TTYL_ROOT}/scripts/cache-segment.sh")
 [ -n "$cache_seg" ] && parts+=("$cache_seg")
 ```
 
@@ -107,43 +115,49 @@ Then in settings:
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/my-statusline.sh",
-    "refreshInterval": 1
+    "refreshInterval": 1,
+    "env": {
+      "CLAUDE_TTYL_ROOT": "/absolute/path/to/the/installed/plugin"
+    }
   }
 }
 ```
 
-> **Note:** `${CLAUDE_PLUGIN_ROOT}` is only set when the status line command itself is declared by the plugin. If you're calling the segment from a non-plugin script, resolve the path manually (see the `CLAUDE_CACHE_TTL_ROOT` fallback above).
+> **Note:** Claude Code only sets `${CLAUDE_PLUGIN_ROOT}` when the status-line command is itself declared by the plugin. From your own statusline script, set `CLAUDE_TTYL_ROOT` explicitly — the marketplace install path includes a version segment (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`) that changes on every plugin update, so a hardcoded fallback would break on upgrade.
 
 ## Tuning
 
-The segment script honors two environment variables:
+The segment script honors:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CACHE_TTL_SECONDS` | `300` | Window length. Set to `3600` if you're using the 1-hour cache beta. |
-| `CACHE_STATE_FILE` | `~/.claude/.cache-timestamp` | Where the hooks write state. Move it if you have multiple Claude installs that shouldn't share state. |
+| `CACHE_TTL_SECONDS` | `300` | Window length. Set to `3600` for the 1-hour cache beta. |
+| `CACHE_TIMERS_DIR` | `~/.claude/cache-timers` | Per-session JSONs live here. |
+| `CACHE_STATE_FILE` | `~/.claude/.cache-timestamp` | Legacy single-file fallback. |
+| `CLAUDE_SESSION_ID` | (from stdin) | Override which session's state to render. |
 
-## Desktop companion app (optional)
+## Desktop companion (optional, Windows)
 
-For the full "Talk To You Later" experience — floating pill, flash on
-finish, click-to-focus VSCode — install the desktop companion from
-`desktop-timer/`. See `desktop-timer/README.md` for details.
+For the full "Talk To You Later" experience — a floating aggregate tile with one row per active Claude session, flash on Claude-is-done, click-to-focus VSCode, and a yellow border on the row whose VSCode is currently focused — install the desktop companion from `desktop-timer/`. See [`desktop-timer/README.md`](desktop-timer/README.md).
 
-The statusline segment works standalone without the desktop app.
+The desktop tile honors `TTYL_TTL_SECONDS` (default `300`, set to `3600` for the 1-hour cache beta) — the same role `CACHE_TTL_SECONDS` plays for the status-line segment.
 
-## Limitations / caveats
+The status-line segment works standalone without the desktop app.
 
-- **Approximation, not truth.** Anthropic doesn't publish cache expiry to the client. The countdown starts from when your local `Stop` hook fired, which is seconds after the *actual* cache-refresh (close enough for practical use, but not exact).
-- **Same state file across projects.** All your Claude Code projects share `~/.claude/.cache-timestamp`. If you run two sessions in parallel, they'll overwrite each other's state. In practice you only have one active session at a time, so this is usually fine.
-- **Requires bash.** Hooks use `date +%s`, `echo`, file redirection. On Windows, Claude Code's default hook shell is Git Bash, which provides these. Native PowerShell is not supported — PRs welcome.
-- **No Anthropic-side verification.** If Anthropic changes the TTL or cache refresh semantics, this plugin won't know. Check [Anthropic's prompt cache docs](https://docs.claude.com/en/docs/build-with-claude/prompt-caching) if behavior seems off.
+## Limitations and caveats
+
+- **Approximation, not truth.** Anthropic doesn't publish the cache-expiry timestamp to the client. The countdown starts when your local `Stop` hook fires, which is ~milliseconds after the actual cache refresh. Close enough for practical use, not exact.
+- **Requires bash.** Hooks rely on `date +%s`, `echo`, and file redirection. Claude Code's default hook shell on Windows is Git Bash, which has these. Native PowerShell hooks aren't supported (PRs welcome).
+- **Optional `jq`.** The scripts use `jq` for JSON parsing when available and fall back to `sed` patterns otherwise. Install `jq` if you can — the fallback works but is more brittle on unusual whitespace.
+- **No Anthropic-side verification.** If Anthropic changes the TTL or cache semantics, TTYL won't know. Sanity-check against the [prompt caching docs](https://docs.claude.com/en/docs/build-with-claude/prompt-caching) if behavior seems off.
 
 ## Uninstall
 
-Remove the `enabledPlugins` entry from settings, and optionally clean up the state file:
+Remove the `enabledPlugins` entry from settings, then optionally clean up state:
 
 ```bash
-rm ~/.claude/.cache-timestamp
+rm -rf ~/.claude/cache-timers
+rm -f ~/.claude/.cache-timestamp
 ```
 
 ## License
