@@ -8,6 +8,10 @@ Thumbs.db
 .daemonstrate.lock
 docs/.daemonstrate.lock
 
+# superpowers skill writes plans/specs into docs/superpowers/ — keep those
+# local; they're agent-voice planning notes, not user-facing docs.
+docs/superpowers/
+
 # Python desktop app
 desktop-timer/.venv/
 desktop-timer/build/

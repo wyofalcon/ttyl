@@ -3,8 +3,7 @@
   "version": "0.2.0",
   "description": "TTYL (\"Talk To You Later\") — floating always-on-top timer that flashes when Claude finishes a turn, plus a prompt-cache TTL countdown for your status line. Tracks multiple parallel Claude sessions and click-to-focuses the owning VSCode window.",
   "author": {
-    "name": "Mac & frAInky Studios",
-    "email": "wyofalcon@gmail.com"
+    "name": "Mac & frAInky Studios"
   },
   "homepage": "https://github.com/wyofalcon/ttyl",
   "license": "MIT",
