@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -17,19 +18,29 @@ def timers_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def make_session(timers_dir: Path):
-    """Factory: write a session JSON file and return its path."""
+    """Factory: write a session JSON file and return its path.
+
+    Defaults epoch/started_at to the current time so files aren't
+    immediately GC'd by watchers that use short stale_seconds windows.
+    Tests that need a stale file pass last_update=0 explicitly.
+    """
 
     def _make(
         session_id: str = "abc",
         state: str = "idle",
-        epoch: int = 1_745_510_000,
+        epoch: int | None = None,
         cwd: str = "/c/Users/w/projects/demo",
         project_name: str = "demo",
         pid: int = 12345,
-        started_at: int = 1_745_509_000,
+        started_at: int | None = None,
         last_update: int | None = None,
         hook_event: str = "Stop",
     ) -> Path:
+        now = int(time.time())
+        if epoch is None:
+            epoch = now
+        if started_at is None:
+            started_at = now - 60
         path = timers_dir / f"{session_id}.json"
         path.write_text(
             json.dumps(
