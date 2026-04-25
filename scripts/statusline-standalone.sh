@@ -8,13 +8,25 @@
 
 input=$(cat)
 
-# Try to extract model via jq; fall back to empty if jq unavailable.
-model=""
-if command -v jq >/dev/null 2>&1; then
-  model=$(echo "$input" | jq -r '.model.display_name // .model.id // ""')
-fi
+# Extract with jq when available, sed as fallback. Without the fallback,
+# environments missing jq (notably default Git Bash on Windows) silently
+# pass an empty session_id, and cache-segment.sh degrades to the shared
+# legacy state file — which is overwritten by every active session and
+# makes the indicator appear to "follow" other Claude instances.
+extract_str() {
+  # $1 = jq path expr; $2 = sed key for fallback
+  if command -v jq >/dev/null 2>&1; then
+    echo "$input" | jq -r "$1 // \"\""
+  else
+    echo "$input" | sed -n 's/.*"'"$2"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1
+  fi
+}
 
-cache_seg=$(bash "$(dirname "$0")/cache-segment.sh")
+model=$(extract_str '.model.display_name' 'display_name')
+[ -z "$model" ] && model=$(extract_str '.model.id' 'id')
+session_id=$(extract_str '.session_id' 'session_id')
+
+cache_seg=$(CLAUDE_SESSION_ID="$session_id" bash "$(dirname "$0")/cache-segment.sh")
 
 # Assemble
 parts=()

@@ -45,6 +45,18 @@ grep -q '"state":"active"' "$HOME/.claude/cache-timers/abc.json" \
   && pass "UserPromptSubmit per-session active" \
   || fail "UserPromptSubmit state" "content: $(cat "$HOME/.claude/cache-timers/abc.json")"
 
+# --- PreCompact (treated like UserPromptSubmit) ---
+echo '{"session_id":"abc","cwd":"/c/Users/w/projects/demo","hook_event_name":"PreCompact"}' \
+  | PPID_OVERRIDE=9999 bash "$script"
+
+[ "$(cat "$HOME/.claude/.cache-timestamp")" = "active" ] \
+  && pass "PreCompact writes legacy 'active'" \
+  || fail "PreCompact legacy" "got '$(cat "$HOME/.claude/.cache-timestamp")'"
+
+grep -q '"state":"active"' "$HOME/.claude/cache-timers/abc.json" \
+  && pass "PreCompact per-session active" \
+  || fail "PreCompact state" "content: $(cat "$HOME/.claude/cache-timers/abc.json")"
+
 # --- Stop ---
 echo '{"session_id":"abc","cwd":"/c/Users/w/projects/demo","hook_event_name":"Stop"}' \
   | PPID_OVERRIDE=9999 bash "$script"
@@ -61,6 +73,18 @@ grep -q '"state":"idle"' "$HOME/.claude/cache-timers/abc.json" \
 grep -qE '"epoch":[0-9]+' "$HOME/.claude/cache-timers/abc.json" \
   && pass "Stop records epoch" \
   || fail "Stop epoch" "content: $(cat "$HOME/.claude/cache-timers/abc.json")"
+
+# --- SessionEnd removes the per-session file ---
+echo '{"session_id":"abc","cwd":"/c/Users/w/projects/demo","hook_event_name":"SessionEnd"}' \
+  | PPID_OVERRIDE=9999 bash "$script"
+
+[ ! -f "$HOME/.claude/cache-timers/abc.json" ] \
+  && pass "SessionEnd removes per-session file" \
+  || fail "SessionEnd cleanup" "abc.json still exists: $(cat "$HOME/.claude/cache-timers/abc.json")"
+
+# Recreate for the next test block.
+echo '{"session_id":"abc","cwd":"/c/Users/w/projects/demo","hook_event_name":"SessionStart"}' \
+  | PPID_OVERRIDE=9999 bash "$script"
 
 # --- Same cwd, new session_id removes stale sibling ---
 echo '{"session_id":"new","cwd":"/c/Users/w/projects/demo","hook_event_name":"SessionStart"}' \

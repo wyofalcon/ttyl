@@ -38,8 +38,15 @@ project_name=$(basename "$cwd" 2>/dev/null)
 
 case "$event" in
   SessionStart) legacy_val="none" ; state="none"  ;;
-  UserPromptSubmit) legacy_val="active" ; state="active" ;;
+  UserPromptSubmit|PreCompact) legacy_val="active" ; state="active" ;;
   Stop) legacy_val="idle:${now}" ; state="idle" ;;
+  SessionEnd)
+    # Claude session is shutting down: drop the per-session file so the
+    # desktop tile removes its row. Leave the legacy single-file state
+    # alone — other sessions may still be relying on it.
+    [ -n "$session_id" ] && rm -f "$timers_dir/${session_id}.json" 2>/dev/null
+    exit 0
+    ;;
   *) exit 0 ;;
 esac
 
@@ -50,7 +57,7 @@ printf '%s' "$legacy_val" > "$legacy_file" 2>/dev/null
 if [ "$event" = "SessionStart" ] && [ -n "$cwd" ]; then
   for f in "$timers_dir"/*.json; do
     [ -f "$f" ] || continue
-    if grep -q "\"cwd\":\"${cwd//\//\\/}\"" "$f" 2>/dev/null; then
+    if grep -qF "\"cwd\":\"${cwd}\"" "$f" 2>/dev/null; then
       case "$f" in *"/${session_id}.json") ;; *) rm -f "$f" ;; esac
     fi
   done

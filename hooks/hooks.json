@@ -1,5 +1,5 @@
 {
-  "description": "TTYL — writes per-session state to ~/.claude/cache-timers/ AND the legacy ~/.claude/.cache-timestamp (for the unchanged statusline segment). All three events route through scripts/cache-hooks.sh.",
+  "description": "TTYL — writes per-session state to ~/.claude/cache-timers/ AND the legacy ~/.claude/.cache-timestamp (for the unchanged statusline segment). All five events route through scripts/cache-hooks.sh; PreCompact is treated like UserPromptSubmit so the timer flips to 'active' while /compact runs; SessionEnd deletes the per-session file so the desktop tile removes its row when Claude exits.",
   "hooks": {
     "SessionStart": [
       { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cache-hooks.sh\"" } ] }
@@ -7,7 +7,13 @@
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cache-hooks.sh\"" } ] }
     ],
+    "PreCompact": [
+      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cache-hooks.sh\"" } ] }
+    ],
     "Stop": [
+      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cache-hooks.sh\"" } ] }
+    ],
+    "SessionEnd": [
       { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cache-hooks.sh\"" } ] }
     ]
   }
