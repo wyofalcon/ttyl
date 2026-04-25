@@ -3,3 +3,13 @@
 .DS_Store
 Thumbs.db
 .worktrees/
+
+# Python desktop app
+desktop-timer/.venv/
+desktop-timer/build/
+desktop-timer/dist/
+desktop-timer/*.spec
+desktop-timer/.pytest_cache/
+__pycache__/
+*.egg-info/
+*.pyc

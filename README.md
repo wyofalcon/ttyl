@@ -123,6 +123,14 @@ The segment script honors two environment variables:
 | `CACHE_TTL_SECONDS` | `300` | Window length. Set to `3600` if you're using the 1-hour cache beta. |
 | `CACHE_STATE_FILE` | `~/.claude/.cache-timestamp` | Where the hooks write state. Move it if you have multiple Claude installs that shouldn't share state. |
 
+## Desktop companion app (optional)
+
+For the full "Talk To You Later" experience — floating pill, flash on
+finish, click-to-focus VSCode — install the desktop companion from
+`desktop-timer/`. See `desktop-timer/README.md` for details.
+
+The statusline segment works standalone without the desktop app.
+
 ## Limitations / caveats
 
 - **Approximation, not truth.** Anthropic doesn't publish cache expiry to the client. The countdown starts from when your local `Stop` hook fired, which is seconds after the *actual* cache-refresh (close enough for practical use, but not exact).
