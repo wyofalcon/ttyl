@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -12,8 +13,13 @@ from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from ttyl import vdesk
+from ttyl.config import Config
 from ttyl.timer_window import TimerWindow
 from ttyl.watcher import CacheTimersWatcher
+
+
+APPDATA = Path(os.environ.get("APPDATA", os.path.expanduser("~"))) / "ttyl"
+CONFIG_PATH = APPDATA / "config.json"
 
 
 def _timers_dir() -> Path:
@@ -24,6 +30,7 @@ class TtylApp:
     def __init__(self, qapp: QApplication):
         self.qapp = qapp
         self.windows: Dict[str, TimerWindow] = {}
+        self.config = Config(CONFIG_PATH)
         self.watcher = CacheTimersWatcher(_timers_dir())
         self.watcher.session_added.connect(self._on_added)
         self.watcher.session_updated.connect(self._on_updated)
@@ -43,13 +50,37 @@ class TtylApp:
         if sid in self.windows:
             return
         w = TimerWindow(json_path=Path(path))
-        idx = len(self.windows)
-        screen = self.qapp.primaryScreen().availableGeometry()
-        w.move(screen.right() - 180, screen.top() + 20 + idx * 40)
+
+        cwd = self._cwd_for(path)
+        pos = None
+        if self.config.position_mode == "remember" and cwd:
+            pos = self.config.get_position(cwd)
+
+        if pos is not None:
+            w.move(*pos)
+        else:
+            idx = len(self.windows)
+            screen = self.qapp.primaryScreen().availableGeometry()
+            w.move(screen.right() - 180, screen.top() + 20 + idx * 40)
+
         w.refresh()
         w.show()
         self.windows[sid] = w
         w.focus_requested.connect(self._on_focus_request)
+        w.position_changed.connect(lambda x, y, p=path: self._persist_position(p, x, y))
+
+    def _cwd_for(self, path: str) -> str:
+        try:
+            return json.loads(Path(path).read_text()).get("cwd", "")
+        except (OSError, json.JSONDecodeError):
+            return ""
+
+    def _persist_position(self, path: str, x: int, y: int) -> None:
+        if self.config.position_mode != "remember":
+            return
+        cwd = self._cwd_for(path)
+        if cwd:
+            self.config.set_position(cwd, x, y)
 
     def _on_focus_request(self, row: dict) -> None:
         from ttyl import vscode_finder
@@ -103,6 +134,24 @@ def _build_tray(qapp: QApplication, ttyl: TtylApp) -> QSystemTrayIcon:
 
     for a in (show_all, hide_all):
         menu.addAction(a)
+    menu.addSeparator()
+
+    mode_menu = menu.addMenu("Position mode")
+    remember = QAction("Remember per project", mode_menu, checkable=True)
+    cascade = QAction("Cascade in corner", mode_menu, checkable=True)
+    remember.setChecked(ttyl.config.position_mode == "remember")
+    cascade.setChecked(ttyl.config.position_mode == "cascade")
+
+    def _set_mode(value):
+        ttyl.config.position_mode = value
+        remember.setChecked(value == "remember")
+        cascade.setChecked(value == "cascade")
+
+    remember.triggered.connect(lambda: _set_mode("remember"))
+    cascade.triggered.connect(lambda: _set_mode("cascade"))
+    mode_menu.addAction(remember)
+    mode_menu.addAction(cascade)
+
     menu.addSeparator()
     menu.addAction(quit_action)
     tray.setContextMenu(menu)

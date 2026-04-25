@@ -33,6 +33,7 @@ _PALETTE = {
 
 class TimerWindow(QWidget):
     focus_requested = pyqtSignal(dict)
+    position_changed = pyqtSignal(int, int)
 
     _flash_counter = 0
 
@@ -48,6 +49,7 @@ class TimerWindow(QWidget):
         self._now_fn = now_fn
         self._ttl = ttl
         self._current: Optional[TimerState] = None
+        self._drag_origin = None
 
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -86,12 +88,37 @@ class TimerWindow(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_origin = (
+                event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            )
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_origin is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_origin)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() != Qt.MouseButton.LeftButton:
+            super().mouseReleaseEvent(event)
+            return
+        origin = self._drag_origin
+        self._drag_origin = None
+        if origin is None:
+            super().mouseReleaseEvent(event)
+            return
+        released = event.globalPosition().toPoint()
+        end_top_left = released - origin
+        moved = (end_top_left - self.frameGeometry().topLeft()).manhattanLength() > 4
+        if moved:
+            self.position_changed.emit(self.pos().x(), self.pos().y())
+        else:
             try:
                 data = json.loads(self._json_path.read_text())
+                self.focus_requested.emit(data)
             except (OSError, json.JSONDecodeError):
-                return
-            self.focus_requested.emit(data)
-        super().mousePressEvent(event)
+                pass
+        super().mouseReleaseEvent(event)
 
     def _play_finish_animation(self) -> None:
         self._flash_counter += 1
