@@ -4,6 +4,10 @@
 Thumbs.db
 .worktrees/
 
+# daemonstrate transient runtime lock — regenerated each run
+.daemonstrate.lock
+docs/.daemonstrate.lock
+
 # Python desktop app
 desktop-timer/.venv/
 desktop-timer/build/
