@@ -12,6 +12,7 @@ Strategy:
 
 from __future__ import annotations
 
+from pathlib import PureWindowsPath
 from typing import Optional
 
 import psutil
@@ -64,31 +65,95 @@ def _walk_to_vscode(start_pid: int) -> Optional[int]:
     return None
 
 
-def _title_match(project_name: str) -> Optional[int]:
-    if win32gui is None or not project_name:
+def _cwd_needles(cwd: str, project_name: str) -> list[str]:
+    """Return path-segment candidates from deepest to shallowest plus
+    project_name, deduped, lowercased, drive letters and root markers
+    omitted. The deepest segments are the most specific and tried first.
+    """
+    needles: list[str] = []
+    seen: set[str] = set()
+
+    def add(s: str) -> None:
+        s = s.strip().lower()
+        if not s or s in seen or s.endswith(":"):
+            return
+        seen.add(s)
+        needles.append(s)
+
+    if project_name:
+        add(project_name)
+    if cwd:
+        # Use PureWindowsPath so backslashes parse correctly on any OS.
+        p = PureWindowsPath(cwd)
+        for part in reversed(p.parts):
+            add(part)
+    return needles
+
+
+def _title_match(project_name: str, cwd: str = "") -> Optional[int]:
+    if win32gui is None:
         return None
-    needle = project_name.lower()
-    match: list[int] = []
+    needles = _cwd_needles(cwd, project_name)
+    if not needles:
+        return None
+
+    # Collect all visible VSCode windows once, then pick the first whose
+    # title matches a needle in priority order (deepest segment first).
+    candidates: list[tuple[int, str]] = []
 
     def cb(hwnd, _):
         if not win32gui.IsWindowVisible(hwnd):
             return
         title = (win32gui.GetWindowText(hwnd) or "").lower()
-        if needle in title and "visual studio code" in title:
-            match.append(hwnd)
+        if "visual studio code" in title:
+            candidates.append((hwnd, title))
 
     win32gui.EnumWindows(cb, None)
-    return match[0] if match else None
+
+    for needle in needles:
+        for hwnd, title in candidates:
+            if needle in title:
+                return hwnd
+    return None
+
+
+def get_foreground_window_title() -> str:
+    """Return the title of the OS foreground window, or '' if unavailable."""
+    if win32gui is None:
+        return ""
+    try:
+        hwnd = win32gui.GetForegroundWindow()
+        if not hwnd:
+            return ""
+        return win32gui.GetWindowText(hwnd) or ""
+    except Exception:
+        return ""
+
+
+def title_matches_session(title: str, cwd: str, project_name: str) -> bool:
+    """True if the given window title looks like the VSCode window for this
+    session — i.e., contains 'visual studio code' and any cwd path segment.
+    """
+    if not title:
+        return False
+    title_l = title.lower()
+    if "visual studio code" not in title_l:
+        return False
+    for needle in _cwd_needles(cwd, project_name):
+        if needle in title_l:
+            return True
+    return False
 
 
 def find_hwnd(pid: int, cwd: str, project_name: str) -> Optional[int]:
     """Return the best-guess HWND for the VSCode window owning this session."""
-    vscode_pid = _walk_to_vscode(pid)
-    if vscode_pid is not None:
-        hwnds = _hwnds_for_pid(vscode_pid)
-        if hwnds:
-            return hwnds[0]
-    return _title_match(project_name)
+    if pid > 1:
+        vscode_pid = _walk_to_vscode(pid)
+        if vscode_pid is not None:
+            hwnds = _hwnds_for_pid(vscode_pid)
+            if hwnds:
+                return hwnds[0]
+    return _title_match(project_name, cwd)
 
 
 def focus(hwnd: int) -> bool:

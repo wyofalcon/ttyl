@@ -1,4 +1,4 @@
-"""Persistent config for TTYL - positions, toggles, start-on-login."""
+"""Persistent config for TTYL - tile position, toggles, start-on-login."""
 
 from __future__ import annotations
 
@@ -12,8 +12,7 @@ class Config:
     def __init__(self, path: Path):
         self._path = Path(path)
         self._data: dict = {
-            "position_mode": "remember",  # or "cascade"
-            "positions": {},
+            "tile_position": None,
             "flash_on_finish": True,
             "chime_on_finish": False,
         }
@@ -24,13 +23,18 @@ class Config:
                 pass
 
     @property
-    def position_mode(self) -> str:
-        return self._data["position_mode"]
+    def tile_position(self) -> Optional[tuple[int, int]]:
+        pos = self._data.get("tile_position")
+        if pos is None:
+            return None
+        return int(pos[0]), int(pos[1])
 
-    @position_mode.setter
-    def position_mode(self, value: str) -> None:
-        assert value in ("remember", "cascade")
-        self._data["position_mode"] = value
+    @tile_position.setter
+    def tile_position(self, value: Optional[tuple[int, int]]) -> None:
+        if value is None:
+            self._data["tile_position"] = None
+        else:
+            self._data["tile_position"] = [int(value[0]), int(value[1])]
         self._save()
 
     @property
@@ -40,16 +44,6 @@ class Config:
     @flash_on_finish.setter
     def flash_on_finish(self, value: bool) -> None:
         self._data["flash_on_finish"] = bool(value)
-        self._save()
-
-    def get_position(self, cwd: str) -> Optional[tuple[int, int]]:
-        pos = self._data["positions"].get(cwd)
-        if pos is None:
-            return None
-        return int(pos[0]), int(pos[1])
-
-    def set_position(self, cwd: str, x: int, y: int) -> None:
-        self._data["positions"][cwd] = [int(x), int(y)]
         self._save()
 
     def _save(self) -> None:
