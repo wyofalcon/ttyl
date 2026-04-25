@@ -161,6 +161,22 @@ def _build_tray(qapp: QApplication, ttyl: TtylApp) -> QSystemTrayIcon:
     mode_menu.addAction(cascade)
 
     menu.addSeparator()
+
+    from ttyl.config import install_startup, remove_startup, is_startup_installed
+
+    startup = QAction("Start on login", menu, checkable=True)
+    startup.setChecked(is_startup_installed())
+
+    def _toggle_startup():
+        if startup.isChecked():
+            install_startup(sys.executable)
+        else:
+            remove_startup()
+
+    startup.triggered.connect(_toggle_startup)
+    menu.addAction(startup)
+
+    menu.addSeparator()
     menu.addAction(quit_action)
     tray.setContextMenu(menu)
     tray.show()
