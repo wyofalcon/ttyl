@@ -1,0 +1,29 @@
+[project]
+name = "ttyl"
+version = "0.2.0"
+description = "Floating desktop companion for the TTYL Claude Code plugin."
+requires-python = ">=3.11"
+dependencies = [
+  "PyQt6>=6.6",
+  "pywin32>=306; sys_platform == 'win32'",
+  "comtypes>=1.2; sys_platform == 'win32'",
+  "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-qt>=4.4",
+  "pyinstaller>=6",
+]
+
+[project.gui-scripts]
+ttyl = "ttyl.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ttyl*"]
