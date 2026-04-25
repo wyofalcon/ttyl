@@ -1,18 +1,21 @@
 {
-  "name": "claude-cache-ttl",
-  "version": "0.1.0",
-  "description": "Adds a prompt-cache TTL countdown to your Claude Code status line. Shows how much time remains before the 5-minute Anthropic prompt cache expires — so you know when your next prompt will be uncached.",
+  "name": "ttyl",
+  "version": "0.2.0",
+  "description": "TTYL (\"Talk To You Later\") — floating always-on-top timer that flashes when Claude finishes a turn, plus a prompt-cache TTL countdown for your status line. Tracks multiple parallel Claude sessions and click-to-focuses the owning VSCode window.",
   "author": {
     "name": "Mac & frAInky Studios",
     "email": "wyofalcon@gmail.com"
   },
-  "homepage": "https://github.com/wyofalcon/claude-cache-ttl",
+  "homepage": "https://github.com/wyofalcon/ttyl",
   "license": "MIT",
   "keywords": [
     "claude-code",
     "claude-code-plugin",
+    "ttyl",
     "statusline",
     "prompt-cache",
+    "floating-timer",
+    "notification",
     "anthropic"
   ]
 }

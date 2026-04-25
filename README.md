@@ -1,6 +1,10 @@
-# claude-cache-ttl
+# TTYL
 
-A Claude Code plugin that adds a **prompt-cache TTL countdown** to your status line — so you can see at a glance how much time remains before the Anthropic ephemeral prompt cache expires (default 5 minutes).
+**Talk To You Later** — a Claude Code plugin + desktop companion that tells you when Claude is done working.
+
+A small floating pill hovers on every virtual desktop, showing live prompt-cache TTL for each active Claude session. When Claude finishes a turn, the pill flashes so you notice from across the room. Click it to jump straight back to the owning VSCode window.
+
+Also ships a minimal statusline segment for users who just want the cache countdown.
 
 ```
 🟢 cache 4:32 | Opus 4.7 | my-project | main
@@ -37,15 +41,15 @@ Add this to your `~/.claude/settings.json`:
 ```json
 {
   "extraKnownMarketplaces": {
-    "local-cache-ttl": {
+    "local-ttyl": {
       "source": {
         "source": "directory",
-        "path": "/absolute/path/to/claude-cache-ttl"
+        "path": "/absolute/path/to/ttyl"
       }
     }
   },
   "enabledPlugins": {
-    "claude-cache-ttl@local-cache-ttl": true
+    "ttyl@local-ttyl": true
   }
 }
 ```
@@ -55,15 +59,15 @@ Add this to your `~/.claude/settings.json`:
 ```json
 {
   "extraKnownMarketplaces": {
-    "cache-ttl": {
+    "ttyl": {
       "source": {
         "source": "github",
-        "repo": "wyofalcon/claude-cache-ttl"
+        "repo": "wyofalcon/ttyl"
       }
     }
   },
   "enabledPlugins": {
-    "claude-cache-ttl@cache-ttl": true
+    "ttyl@ttyl": true
   }
 }
 ```
