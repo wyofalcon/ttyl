@@ -6,7 +6,7 @@ import os
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QCoreApplication, QTimer
+from PyQt6.QtCore import QCoreApplication, QSharedMemory, QTimer
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
@@ -151,6 +151,11 @@ def main() -> int:
     QCoreApplication.setApplicationName("TTYL")
     QCoreApplication.setOrganizationName("TTYL")
     qapp = QApplication(sys.argv)
+
+    lock = QSharedMemory("ttyl-singleton-v1")
+    if not lock.create(1):
+        return 0
+
     qapp.setQuitOnLastWindowClosed(False)
     ttyl = TtylApp(qapp)
     tray = _build_tray(qapp, ttyl)
